@@ -1,0 +1,43 @@
+services:
+  # 1. Der Haupt-Webservice für FastAPI und die Telegram Webhooks
+  - type: web
+    name: nexus-shop-api
+    env: docker
+    plan: starter # 'free' ist möglich, kann aber zu Verzögerungen beim Bot-Antworten führen
+    region: frankfurt # Nähe zu Deutschland/Europa
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHONPATH
+        value: /app
+      - fromGroup: nexus-secrets # Gruppiert alle API Keys an einem Ort
+
+  # 2. Der tägliche Cron-Job zur Prüfung abgelaufener Demos
+  - type: cron
+    name: demo-expiry-checker
+    env: docker
+    plan: starter
+    schedule: "0 0 * * *" # Täglich um Mitternacht
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    # Wir überschreiben den CMD aus dem Dockerfile für den Cron-Job
+    dockerCommand: "python -m scripts.check_expirations"
+    envVars:
+      - fromGroup: nexus-secrets
+
+# Zentrale Verwaltung der Umgebungsvariablen
+envVarGroups:
+  - name: nexus-secrets
+    envVars:
+      - key: SUPABASE_URL
+        sync: false # Muss manuell im Render Dashboard eingetragen werden
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MASTER_BOT_TOKEN
+        sync: false
+      - key: WEBHOOK_HOST
+        sync: false # Deine Render URL: https://nexus-shop-api.onrender.com
+      - key: ADMIN_SECRET
+        sync: false # Dein Dashboard Passwort
